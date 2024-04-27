@@ -1,0 +1,134 @@
+{
+    "ds": {
+        "POLARDB-X": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/POLARDB-X/LINUX/64bit/ds.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/POLARDB-X/LINUX/64bit/ds",
+            "file": [
+                "bin/mdsd",
+                "bin/alp",
+                "bin/nfm_sender",
+                "bin/pmon"
+            ]
+        },
+        "MYSQL": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/MYSQL/LINUX/64bit/ds.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/MYSQL/LINUX/64bit/ds",
+            "file": [
+                "bin/mdsd",
+                "bin/alp",
+                "bin/nfm_sender",
+                "bin/pmon"
+            ]
+        },
+        "ORACLE_11.2.0.1.0.Linux.x86_64": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.11.2.0.1.0/ds.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.11.2.0.1.0/ds",
+            "file": [
+                "bin/dbpsd",
+                "bin/oxad",
+                "bin/aoxd",
+                "bin/vagentd",
+                "bin/xagentd",
+                "bin/sender",
+                "bin/vman",
+                "bin/pmon"
+            ]
+        },
+        "ORACLE_12.2.0.1.0.Linux.x86_64": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.12.2.0.1.0/ds.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.12.2.0.1.0/ds",
+            "file": [
+                "bin/dbpsd",
+                "bin/oxad",
+                "bin/aoxd",
+                "bin/vagentd",
+                "bin/xagentd",
+                "bin/sender",
+                "bin/vman",
+                "bin/pmon"
+            ]
+        },
+        "ORACLE_19.3.0.0.0.Linux.x86_64": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.19.3.0.0.0/ds.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.19.3.0.0.0/ds",
+            "file": [
+                "bin/dbpsd",
+                "bin/oxad",
+                "bin/aoxd",
+                "bin/vagentd",
+                "bin/xagentd",
+                "bin/sender",
+                "bin/vman",
+                "bin/pmon"
+            ]
+        }
+    },
+    "dt": {
+        "KAFKA": {
+            "package": "engineDsg/java/kafka/dt.tar.gz",
+            "dir": "engineDsg/java/kafka/dt",
+            "file": [
+                "bin/xagentd",
+                "bin/nfmd",
+                "bin/yloader",
+                "bin/pmon"
+            ]
+        },
+        "KAFKA_JAVA": {
+            "package": "engineDsg/java/kafka/Jddm_socket_kafka13_docker.tar.gz",
+            "dir": "engineDsg/java/kafka/Jddm_socket_kafka13_docker",
+            "file": [
+                "bin/jddmDSGKafkaEngine.jar",
+                "lib/com.dsg.yxad.operation.jar",
+                "lib/com.dsg.yxad.analysis.jar",
+                "lib/com.dsg.public.quartz.MonitorModule.jar",
+                "lib/com.dsg.public.operation.jar",
+                "lib/com.dsg.jddm.communication.jar",
+                "module/jddm.engine.module.databaseOperation.jar"
+            ]
+        },
+        "MYSQL": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/MYSQL/LINUX/64bit/dt.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/MYSQL/LINUX/64bit/dt",
+            "file": [
+                "bin/nfmd",
+                "bin/yloader",
+                "bin/yxad",
+                "bin/pmon"
+            ]
+        },
+        "ORACLE_11.2.0.1.0.Linux.x86_64": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.11.2.0.1.0/dt.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.11.2.0.1.0/dt",
+            "file": [
+                "bin/xagentd",
+                "bin/vagentd",
+                "bin/yloader",
+                "bin/yxad",
+                "bin/pmon"
+            ]
+        },
+        "ORACLE_12.2.0.1.0.Linux.x86_64": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.12.2.0.1.0/dt.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.12.2.0.1.0/dt",
+            "file": [
+                "bin/xagentd",
+                "bin/vagentd",
+                "bin/yloader",
+                "bin/yxad",
+                "bin/pmon"
+            ]
+        },
+        "ORACLE_19.3.0.0.0.Linux.x86_64": {
+            "package": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.19.3.0.0.0/dt.tar.gz",
+            "dir": "engineDsg/c/SODT_D_M/Supersync/ORACLE/Linux3.10/64bit/oracle.19.3.0.0.0/dt",
+            "file": [
+                "bin/xagentd",
+                "bin/vagentd",
+                "bin/yloader",
+                "bin/yxad",
+                "bin/pmon"
+            ]
+        }
+    }
+}
