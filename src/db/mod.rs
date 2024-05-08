@@ -1,3 +1,6 @@
+use std::{process::exit, time::Duration};
+
+use log::error;
 use sqlx::{prelude::FromRow, MySql, Pool};
 
 use crate::config::Server;
@@ -14,16 +17,9 @@ pub struct DBInfo {
 
 #[derive(Debug, FromRow)]
 pub struct YRBA {
-    // id: u64,
-    // p: String,
-    // q: String, 
-    // l_rba: Option<String>,
     LSCN: Option<String>,
     UCMT_SCN: Option<String>,
-    // qno: Option<usize>,
-    // l_sct: Option<String>,
 }
-
 
 pub const DB_NAME: &'static str = "dataxone_pmon";
 
@@ -47,8 +43,11 @@ impl Client {
             .database(&DB_NAME);
 
         let result = sqlx::mysql::MySqlPoolOptions::new()
-            .max_connections(4)
+            .max_connections(1)
             .min_connections(1)
+            .max_lifetime(None)
+            .acquire_timeout(Duration::from_secs(10800))
+            .idle_timeout(Duration::from_secs(10800))
             .connect_with(options).await;
         
         
@@ -58,7 +57,19 @@ impl Client {
 
     pub async fn query_log_pos(&self, s: &Server) -> Option<String> {
         let sql = format!("select LSCN, UCMT_SCN from {}.yrba where qnm = ?", DB_NAME);
-        let rows = sqlx::query_as::<_, YRBA>(&sql).bind(&s.service_name).fetch_all(&self.pool).await.unwrap();
+
+        // thread 'monica' panicked at src\db\mod.rs:54:102:
+        // called `Result::unwrap()` on an `Err` value: PoolTimedOut
+        // 1、cause: error returned from database: 1159 (08S01): Got timeout reading communication packets
+        // 2、Database data fetch failed, cause: pool timed out while waiting for an open connection
+        // 连接超时，需保持长连接
+        let rows = match sqlx::query_as::<_, YRBA>(&sql).bind(&s.service_name).fetch_all(&self.pool).await {
+            Ok(r) => r,
+            Err(e) => {
+                error!("xlsx:Line: {:<2} Database data fetch failed, cause: {}", s.rid, e);
+                exit(-1);
+            }
+        };
 
         if rows.len() == 0 {
             None
@@ -73,6 +84,10 @@ impl Client {
                 Some(value) => format!("{}{}", yrba, value),
                 None => format!("{}", yrba),
             };
+
+            if yrba == "," {
+                return None;
+            }
     
             Some(yrba)
         }
