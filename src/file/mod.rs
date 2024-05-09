@@ -150,6 +150,11 @@ pub fn write_checkpoint(dbps_home: &str, s: &Server, role: usize, xlsx_checksum:
 
     let s = format!("{}:{}:{}:{}\n", dbps_home, s.service_name, s.rid, Local::now().format("%Y-%m-%d %H:%M:%S"));
 
+    write_ckp(&local_ckp_file, s);
+
+}
+
+fn write_ckp(local_ckp_file: &String, s: String) {
     match OpenOptions::new().append(true).write(true).create(true).open(&local_ckp_file) {
         Ok(mut f) => {
             f.write_all(s.as_bytes()).unwrap();
@@ -158,7 +163,6 @@ pub fn write_checkpoint(dbps_home: &str, s: &Server, role: usize, xlsx_checksum:
             error!("File {} write failed, cause: {}", &local_ckp_file, e);
         }
     }
-
 }
 
 pub fn read_checkpoint(s: &Server, role: usize, xlsx_checksum: &str) -> Option<String> {
@@ -171,6 +175,11 @@ pub fn read_checkpoint(s: &Server, role: usize, xlsx_checksum: &str) -> Option<S
     // .monica/inventory/<checksum>/2-11.ckp
     let local_ckp_file = format!("{}/{}/{}-{}.ckp", dir, xlsx_checksum, s.rid, role);
 
+    read_ckp(local_ckp_file)
+
+}
+
+fn read_ckp(local_ckp_file: String) -> Option<String> {
     match File::open(local_ckp_file) {
         Ok(mut f) => {
             let mut contents: String = String::new();
@@ -179,7 +188,6 @@ pub fn read_checkpoint(s: &Server, role: usize, xlsx_checksum: &str) -> Option<S
         },
         Err(_) => None
     }
-
 }
 
 // 写入检查点文件
@@ -199,15 +207,7 @@ pub fn write_backup_checkpoint(dbps_home: &str, s: &Server, role: usize, xlsx_ch
 
     let s = format!("{}:{}:{}:{}\n", dbps_home, s.service_name, s.rid, Local::now().format("%Y-%m-%d %H:%M:%S"));
 
-    match OpenOptions::new().append(true).write(true).create(true).open(&local_ckp_file) {
-        Ok(mut f) => {
-            f.write_all(s.as_bytes()).unwrap();
-        },
-        Err(e) => {
-            error!("File {} write failed, cause: {}", &local_ckp_file, e);
-        }
-    }
-
+    write_ckp(&local_ckp_file, s);
 }
 
 pub fn read_backup_checkpoint(s: &Server, role: usize, xlsx_checksum: &str) -> Option<String> {
@@ -220,14 +220,7 @@ pub fn read_backup_checkpoint(s: &Server, role: usize, xlsx_checksum: &str) -> O
     // .monica/inventory/<checksum>/2-11.ckp
     let local_ckp_file = format!("{}/{}/{}-{}.bak", dir, xlsx_checksum, s.rid, role);
 
-    match File::open(local_ckp_file) {
-        Ok(mut f) => {
-            let mut contents: String = String::new();
-            f.read_to_string(&mut contents).unwrap();
-            Some(contents)
-        },
-        Err(_) => None
-    }
+    read_ckp(local_ckp_file)
 
 }
 

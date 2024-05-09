@@ -29,8 +29,7 @@ fn print_info(log_file: &str){
     // 创建日志目录
     fs::create_dir_all(format!("{}/{}/logs", log_file_output, &datadir)).unwrap();
 
-    println!("");
-    println!("{} {}, build {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), key.unwrap());
+    println!("\n{} {}, build {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), key.unwrap());
     println!("{} version {}", env!("CARGO_PKG_DESCRIPTION"), env!("CARGO_PKG_VERSION"));
     println!("copyright (c) 2024, dsgdata.com.  All rights reserved.");
     println!("Authors           : {}", env!("CARGO_PKG_AUTHORS"));
@@ -39,14 +38,10 @@ fn print_info(log_file: &str){
     println!("Manifest file     : {}", get_manifest_file());
     println!("Input file        : {}", get_input_file());
     println!("Log file location : {}", log_file);
-    println!("");
-    println!("--------------------------------------------------------------------------------");
-    println!("");
+    println!("\n--------------------------------------------------------------------------------\n");
     println!("Local Machine Information::");
     println!("Platform description: {} {}", env::consts::OS, env::consts::ARCH);
-    println!("");
-    println!("--------------------------------------------------------------------------------");
-    println!("");
+    println!("\n--------------------------------------------------------------------------------\n");
 
 }
 
