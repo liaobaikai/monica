@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::{self, File}, io::{self, Error}, process::exit};
 
 use lazy_static::lazy_static;
-use log::{error, info};
+use log::error;
 use serde::{Deserialize, Serialize};
 use structopt::StructOpt;
 use calamine::{open_workbook, Reader, Xlsx};
@@ -380,7 +380,7 @@ pub fn current_log_position() -> bool {
         Command::Patch(a) => {
             a.current_log_position
         },
-        Command::Backup(a) => {
+        Command::Backup(_) => {
             true
         },
         Command::Rollback(a) => {

@@ -10,6 +10,14 @@ use super::{error, log};
 
 // 预检查事件处理
 pub async fn handle_command_precheck(worker_threads: usize){
+
+    let size = config::GLOBAL_CONFIG.servers.len();
+
+    if size == 0 {
+        println!("\nWarning: The xlsx file has no valid lines\n");
+        return ;
+    }
+
     // 创建线程池
     // https://rust-book.junmajinlong.com/ch100/01_understand_tokio_runtime.html
     let rt = runtime::Builder::new_multi_thread()
@@ -20,7 +28,7 @@ pub async fn handle_command_precheck(worker_threads: usize){
             .build()
             .unwrap();
 
-    let counter = Arc::new(Mutex::new(config::GLOBAL_CONFIG.servers.len()));
+    let counter = Arc::new(Mutex::new(size));
 
     // 预检查
     let mut handles = vec![];

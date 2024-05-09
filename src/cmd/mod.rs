@@ -1,4 +1,4 @@
-use std::{fs, sync::{Arc, Mutex}};
+use std::sync::{Arc, Mutex};
 
 use comfy_table::Table;
 use log::{error, info};

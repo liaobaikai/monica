@@ -264,7 +264,6 @@ async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
     let dbps_home = match ssh.ds_dbps_home(s) {
         Some(s) => s,
         None => {
-            println!("1111:{:?}", s);
             error(s, "<NONE>", "No such directory <<<");
             return;
         }
