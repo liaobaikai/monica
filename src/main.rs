@@ -78,7 +78,7 @@ async fn main() -> Result<(), sqlx::Error>{
     let log_file_output = env::current_dir().unwrap().display().to_string();
     let datadir = get_datadir();
     let log_dir = format!("{}/{}/logs", log_file_output, &datadir);
-    let log_file_name = format!("monica-{}.log", Local::now().format("%Y-%m-%d_%H%M%S"));
+    let log_file_name = format!("monica-{}-{}.log", log_prefix, Local::now().format("%Y-%m-%d_%H%M%S"));
     let log_file = format!("{}/{}", log_dir, log_file_name);
     
     print_info(&log_file);
