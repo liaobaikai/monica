@@ -2,7 +2,7 @@
 use std::{env, fs, io, path::Path, process::exit};
 use chrono::Local;
 use config::{get_debug, Command};
-use log::{info, LevelFilter};
+use log::LevelFilter;
 use log4rs::{append::{console::ConsoleAppender, file::FileAppender}, config::{runtime::RootBuilder, Appender, Logger, Root}, encode::pattern::PatternEncoder, Config};
 use cmd::{backup::handle_command_backup, lsinventory::handle_command_lsinventory, precheck::handle_command_precheck, rollback::handle_command_rollback};
 use structopt::StructOpt;
