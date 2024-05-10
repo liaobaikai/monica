@@ -56,7 +56,7 @@ pub async fn handle_command_backup(worker_threads: usize){
 // 如果上传过程中失败，则需要自动回退操作
 async fn start_backup_worker(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<usize>>, s: &Server){
     
-    let (_, yrba_dat) = query_log_position(s, c.clone()).await;
+    
     // if current_log_position() {
     // }
     // 连接到复制机，需考虑异机部署
@@ -64,16 +64,16 @@ async fn start_backup_worker(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<
     
     print_counter(c0);
 
-    start_ds_worker(&ssh, s, xlsx_checksum, &yrba_dat);
-    start_dt_worker(&ssh, s, xlsx_checksum, &yrba_dat);
-    start_jddm_worker(&ssh, s, xlsx_checksum, &yrba_dat);
+    start_ds_worker(&ssh, c, s, xlsx_checksum).await;
+    start_dt_worker(&ssh, s, xlsx_checksum);
+    start_jddm_worker(&ssh, s, xlsx_checksum);
 
     info!("xlsx:Line: {:<2} Host: {}, Service: {}, Backup completed", &s.rid, &s.hostname, &s.service_name);
 
 }
 
 
-fn start_dt_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data: &str){
+fn start_dt_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -102,23 +102,14 @@ fn start_dt_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data
     if exists {
         // 备份文件已存在
         log(s, &dbps_home, &format!("BackupSet: {} exists", remote_backupset_file));
-        // 写入检查点
-        file::write_backup_checkpoint(&dbps_home, s, config::ROLE_DT, xlsx_checksum);
-        return;
-    }
+    } else {
 
-    // 将位点信息写入备份目录中：$DBPS_HOME/bin/monica.yrba.dat
-    match ssh.write_log_pos(&dbps_home, &yrba_data) {
-        Ok(log_pos_written) => match config::get_dt_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
-            Some(manifest) => {
-                if backup_remote_files(xlsx_checksum, manifest, &dbps_home, &ssh, &s, log_pos_written) {
-                    // 写入检查点
-                    file::write_backup_checkpoint(&dbps_home, s, config::ROLE_DT, xlsx_checksum);
-                }
-            },
-            None => error(s, &dbps_home, "Oracle version read failed <<<")
-        },
-        Err(e) => config::abnormal_exit_backup(&e)
+        if let Some(manifest) = config::get_dt_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
+            backup_remote_files(xlsx_checksum, manifest, &dbps_home, &ssh, &s, false);
+        } else {
+            error(s, &dbps_home, "Oracle version read failed <<<")
+        }
+
     }
 
     // 写入检查点
@@ -127,7 +118,7 @@ fn start_dt_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data
 }
 
 
-fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data: &str){
+fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -156,31 +147,21 @@ fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_da
         }
     };
 
+    // 将启动参数写入到 $dbps_home/bin/monica.started 中
+    // ./startJddmKafkaEngine.sh start <service_name> <jddm_state>
+    if ssh.write_jddm_starts_with(&dbps_home) {
+        log(s, &dbps_home, &format!("Jddm_starts_with written to {}", JDDM_START_WITH_FILE));
+    }
+
     // 判断远端是否有备份集
     let (exists, remote_backupset_file) = ssh.exists_backupset(xlsx_checksum, &dbps_home);
     if exists {
         // 备份文件已存在
         log(s, &dbps_home, &format!("BackupSet: {} exists", remote_backupset_file));
-        // 写入检查点
-        file::write_backup_checkpoint(&dbps_home, s, config::ROLE_JDDM, xlsx_checksum);
-        return;
-    }
 
-    // 将位点信息写入备份目录中：$DBPS_HOME/bin/monica.yrba.dat
-    match ssh.write_log_pos(&dbps_home, &yrba_data) {
-        Ok(log_pos_written) => {
-
-            // 将启动参数写入到 $dbps_home/bin/monica.started 中
-            // ./startJddmKafkaEngine.sh start <service_name> <jddm_state>
-            if ssh.write_jddm_starts_with(&dbps_home) {
-                log(s, &dbps_home, &format!("Jddm_starts_with written to {}", JDDM_START_WITH_FILE));
-            }
-
-            let manifest = config::get_jddm_manifest(input);
-            backup_remote_files(xlsx_checksum, manifest, &dbps_home, &ssh, &s, log_pos_written);
-        },
-
-        Err(e) => config::abnormal_exit_backup(&e)
+    } else {
+        let manifest = config::get_jddm_manifest(input);
+        backup_remote_files(xlsx_checksum, manifest, &dbps_home, &ssh, &s, false);
     }
 
     // 写入检查点
@@ -189,7 +170,7 @@ fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_da
 }
 
 
-fn start_ds_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data: &str){
+async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.src_type {
         Some(s) => s,
@@ -222,8 +203,11 @@ fn start_ds_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data
         return;
     }
 
+    // 从数据库中查询位点信息
+    let (_, yrba_dat) = query_log_position(s, c.clone()).await;
+
     // 将位点信息写入备份目录中：$DBPS_HOME/bin/monica.yrba.dat
-    match ssh.write_log_pos(&dbps_home, &yrba_data) {
+    match ssh.write_log_pos(&dbps_home, &yrba_dat) {
         Ok(log_pos_written) => match config::get_ds_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
             Some(manifest) => {
                 if backup_remote_files(xlsx_checksum, manifest, &dbps_home, &ssh, &s, log_pos_written) {

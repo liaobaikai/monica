@@ -50,7 +50,8 @@ pub fn clean_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
 
 // 启动任务
 pub fn startup(s: &Server, dbps_home: &str, ssh: &ssh::Client){
-    let cmd = format!("export DBPS_HOME={} && cd $DBPS_HOME/scripts && sh ./{}", dbps_home, START_SERVICE_SCRIPT);
+    let cmd = format!("export DBPS_HOME={} && cd $DBPS_HOME && rm bin/monica.* && cd $DBPS_HOME/scripts && sh ./{}", 
+        dbps_home, START_SERVICE_SCRIPT);
     let (status, _, stderr) = ssh.exec_cmd_with_status(&cmd);
     if status == 0 {
         log(s, dbps_home, "Startup command has been issued");
@@ -59,10 +60,24 @@ pub fn startup(s: &Server, dbps_home: &str, ssh: &ssh::Client){
     }
 }
 
+// 清理垃圾文件
+// bin/monica.*     --ALL
+// lib/monica.*     --JDDM
+// module/monica.*  --JDDM
+pub fn clean_monica_cache_file(dbps_home: &str, ssh: &ssh::Client){
+    ssh.exec_cmd_with_status(&format!("cd {} && rm bin/monica.* lib/monica.* module/monica.* 2>/dev/null", dbps_home));
+}
+
 // 启动任务
 pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
-    let cmd = format!("export DBPS_HOME={} && export START_WITH=\"$(cat $DBPS_HOME/{})\" && cd $DBPS_HOME && sh ./{} start {} \"$START_WITH\" && sh ./{} start {} \"$START_WITH\"", 
-            dbps_home, JDDM_START_WITH_FILE, START_JDDM_M_SCRIPT, s.service_name, START_JDDM_SCRIPT, s.service_name);
+    
+    let mut cmd = format!("export DBPS_HOME={} && cd $DBPS_HOME", dbps_home);
+    cmd = format!("{} export START_WITH=\"$(cat $DBPS_HOME/{} 2>/dev/null)\" && ", cmd, JDDM_START_WITH_FILE);
+    // 清理垃圾文件
+    cmd = format!("{} rm {{bin,lib,module}}/monica.* 2>/dev/null && ", cmd);
+    cmd = format!("{} ./{} start {} \"$START_WITH\" >/dev/null && ", cmd, START_JDDM_M_SCRIPT, s.service_name);
+    cmd = format!("{} ./{} start {} \"$START_WITH\" >/dev/null", cmd, START_JDDM_SCRIPT, s.service_name);
+    
     let (status, _, stderr) = ssh.exec_cmd_with_status(&cmd);
     if status == 0 {
         log(s, dbps_home, "Startup command has been issued");

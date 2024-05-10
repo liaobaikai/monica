@@ -4,6 +4,8 @@ use log::info;
 use tokio::runtime;
 use crate::{cmd, config::{self, Manifest, Server}, db, file, ssh};
 
+use super::clean_monica_cache_file;
+
 
 // 升级事件处理
 pub async fn handle_command_xpatch(worker_threads: usize) {
@@ -53,14 +55,14 @@ async fn start_xpatch_worker(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<
     cmd::print_counter(c0);
 
     start_ds_worker(&mut ssh, c, s, xlsx_checksum).await;
-    start_dt_worker(&mut ssh, c, s, xlsx_checksum).await;
-    start_jddm_worker(&mut ssh, c, s, xlsx_checksum).await;
+    start_dt_worker(&mut ssh, s, xlsx_checksum);
+    start_jddm_worker(&mut ssh, s, xlsx_checksum);
 
     info!("xlsx:Line: {:<2} Host: {}, Service: {}, Patch completed", &s.rid, &s.hostname, &s.service_name);
 }
 
 
-async fn start_dt_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+fn start_dt_worker(ssh: &mut ssh::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -84,14 +86,6 @@ async fn start_dt_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx
         }
     };
 
-    // 从远端文件中获取位点信息
-    let valid_log_pos;
-    if cmd::current_log_position() {
-        (valid_log_pos, _) = cmd::query_log_position(s, c.clone()).await;
-    } else {
-        (valid_log_pos, _) = cmd::read_log_position(&ssh, &dbps_home, s);
-    }
-
     // 停止程序
     let (starting, starting2) = ssh.kill_ps(&format!("{}/bin/", dbps_home));
     cmd::log(s, &dbps_home, &format!("B-Start:{}, A-Start:{}", starting, starting2));
@@ -101,26 +95,23 @@ async fn start_dt_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx
         None => cmd::error(s, &dbps_home, "Oracle version read failed <<<")
     }
 
-    // 写入检查点文件
-    file::write_checkpoint(&dbps_home, s, config::ROLE_DT, xlsx_checksum);
-
     // 文件上传完成后重置任务
     cmd::clean_dt(s, &dbps_home, &ssh);
-
-    if !valid_log_pos {
-        cmd::log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-        return;
-    }
 
     if starting {
         cmd::startup(s, &dbps_home, &ssh);
     } else {
         cmd::log(s, &dbps_home, "Non-Start, Skip start");
+        // 清理垃圾文件
+        clean_monica_cache_file(&dbps_home, &ssh);
     }
+
+    // 写入检查点文件
+    file::write_checkpoint(&dbps_home, s, config::ROLE_DT, xlsx_checksum);
 
 }
 
-async fn start_jddm_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+fn start_jddm_worker(ssh: &mut ssh::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -149,14 +140,6 @@ async fn start_jddm_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xl
         }
     };
 
-    // 从远端文件中获取位点信息
-    let valid_log_pos;
-    if cmd::current_log_position() {
-        (valid_log_pos, _) = cmd::query_log_position(s, c.clone()).await;
-    } else {
-        (valid_log_pos, _) = cmd::read_log_position(&ssh, &dbps_home, s);
-    }
-
     // 停止程序
     let (starting, starting2) = ssh.kill_ps(&format!("DPath={} ", dbps_home));
     cmd::log(s, &dbps_home, &format!("B-Start: {}, A-Start: {}", starting, starting2));
@@ -164,22 +147,24 @@ async fn start_jddm_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xl
     let manifest = config::get_jddm_manifest(input);
     patch_remote_files(config::ROLE_JDDM, manifest, &dbps_home, ssh, &s, xlsx_checksum);
 
-    // 写入检查点文件
-    file::write_checkpoint(&dbps_home, s, config::ROLE_JDDM, xlsx_checksum);
-
+    
     // 文件上传完成后重置任务
     cmd::clean_jddm(s, &dbps_home, &ssh);
 
-    if !valid_log_pos {
-        cmd::log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-        return;        
-    }
+    // if !valid_log_pos {
+    //     cmd::log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
+    //     return;        
+    // }
 
     if starting {
         cmd::startup_jddm(s, &dbps_home, &ssh);
     } else {
         cmd::log(s, &dbps_home, "Non-Start, Skip start");
+        clean_monica_cache_file(&dbps_home, &ssh);
     }
+
+    // 写入检查点文件
+    file::write_checkpoint(&dbps_home, s, config::ROLE_JDDM, xlsx_checksum);
 
 
 }
@@ -227,25 +212,23 @@ async fn start_ds_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx
         None => cmd::error(s, &dbps_home, "Oracle version read failed <<<")
     }
 
-    // 写入检查点文件
-    file::write_checkpoint(&dbps_home, s, config::ROLE_DS, xlsx_checksum);
-
     // 文件上传完成后重置任务
     cmd::clean_ds(s, &dbps_home, &ssh);
 
-    if !valid_log_pos {
-        cmd::log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-        return;
+    if valid_log_pos {
+        // 写入yrba文件
+        cmd::update_yrba_file(s, &dbps_home, &yrba_dat, &ssh);
     }
-
-    // 写入yrba文件
-    cmd::update_yrba_file(s, &dbps_home, &yrba_dat, &ssh);
 
     if starting {
         cmd::startup(s, &dbps_home, &ssh);
     } else {
         cmd::log(s, &dbps_home, "Non-Start, Skip start");
+        clean_monica_cache_file(&dbps_home, &ssh);
     }
+
+    // 写入检查点文件
+    file::write_checkpoint(&dbps_home, s, config::ROLE_DS, xlsx_checksum);
         
 }
 
