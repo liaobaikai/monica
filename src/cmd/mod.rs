@@ -14,6 +14,7 @@ pub mod backup;
 pub const START_SERVICE_SCRIPT: &str = "start_flow.sh";
 pub const START_JDDM_M_SCRIPT: &str = "startMonitorJddmEngine.sh";
 pub const START_JDDM_SCRIPT: &str = "startJddmKafkaEngine.sh";
+pub const JDDM_START_WITH_FILE: &str = "bin/monica.started";
 
 // 通用步骤
 pub fn clean_ds(s: &Server, dbps_home: &str, ssh: &ssh::Client){
@@ -60,8 +61,8 @@ pub fn startup(s: &Server, dbps_home: &str, ssh: &ssh::Client){
 
 // 启动任务
 pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
-    let cmd = format!("export DBPS_HOME={} && export START_WITH=\"$(cat $DBPS_HOME/bin/monica.started)\" && cd $DBPS_HOME && sh ./{} start {} '$START_WITH' && sh ./{} start {} '$START_WITH'", 
-            dbps_home, START_JDDM_M_SCRIPT, s.service_name, START_JDDM_SCRIPT, s.service_name);
+    let cmd = format!("export DBPS_HOME={} && export START_WITH=\"$(cat $DBPS_HOME/{})\" && cd $DBPS_HOME && sh ./{} start {} \"$START_WITH\" && sh ./{} start {} \"$START_WITH\"", 
+            dbps_home, JDDM_START_WITH_FILE, START_JDDM_M_SCRIPT, s.service_name, START_JDDM_SCRIPT, s.service_name);
     let (status, _, stderr) = ssh.exec_cmd_with_status(&cmd);
     if status == 0 {
         log(s, dbps_home, "Startup command has been issued");

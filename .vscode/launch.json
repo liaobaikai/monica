@@ -19,9 +19,11 @@
                     "kind": "bin"
                 }
             },
-            "args": ["precheck", "--basedir=C:\\Users\\BK-liao\\Documents", "--input-file=C:\\Users\\BK-liao\\monica\\123.xlsx", "--manifest-file=C:\\Users\\BK-liao\\monica\\manifest.json"],
-            "cwd": "${workspaceFolder}",
-            "env": {"BUILD_TIME":"%date:~0,4%-%date:~5,2%-%date:~8,2%"}
+            "args": ["patch", "-h192.168.6.251", "-pdsgdata@000", "-uroot", "-P3306", "--basedir=C:\\Users\\BK-liao\\Documents", "--input-file=C:\\Users\\BK-liao\\monica\\123.xlsx", "--manifest-file=C:\\Users\\BK-liao\\monica\\manifest.json"],
+            // "args": ["backup", "-h192.168.6.251", "-pdsgdata@000", "-uroot", "-P3306", "--basedir=C:\\Users\\BK-liao\\Documents", "--input-file=C:\\Users\\BK-liao\\monica\\123.xlsx", "--manifest-file=C:\\Users\\BK-liao\\monica\\manifest.json"],
+            // "args": ["rollback", "-h192.168.6.251", "-pdsgdata@000", "-uroot", "-P3306", "--basedir=C:\\Users\\BK-liao\\Documents", "--input-file=C:\\Users\\BK-liao\\monica\\123.xlsx", "--manifest-file=C:\\Users\\BK-liao\\monica\\manifest.json"],
+            // "args": ["precheck", "--basedir=C:\\Users\\BK-liao\\Documents", "--input-file=C:\\Users\\BK-liao\\monica\\123.xlsx", "--manifest-file=C:\\Users\\BK-liao\\monica\\manifest.json"],
+            "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",

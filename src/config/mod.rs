@@ -33,7 +33,7 @@ pub struct GlobalConfig {
 }
 
 // 主机名	端口	协议	用户名	密码	基础目录	服务名
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 pub struct Server {
     pub rid: usize,
     pub hostname: String,
@@ -118,7 +118,7 @@ pub struct ComArgument {
     pub manifest_file: String,
     
     /// Parallel workers
-    #[structopt(short, long, default_value="4")]
+    #[structopt(short, long, default_value="1")]
     pub worker_threads: usize,
 
     /// User input file read start with number. 
@@ -155,7 +155,7 @@ pub struct PreCheckArgument {
     pub manifest_file: String,
 
     /// Parallel workers
-    #[structopt(short, long, default_value="4")]
+    #[structopt(short, long, default_value="1")]
     pub worker_threads: usize,
 
     /// User input file read start with number. 
@@ -191,7 +191,7 @@ pub struct PatchArgument {
     pub manifest_file: String,
 
     /// Parallel workers
-    #[structopt(short, long, default_value="4")]
+    #[structopt(short, long, default_value="1")]
     pub worker_threads: usize,
 
     /// User input file read start with number. 
@@ -244,7 +244,7 @@ pub enum Command {
 }
 
 #[derive(Debug, StructOpt)]
-#[structopt(name = "monica", about = "SuperSync tasks upgrade tools on dataxone environment.")]
+#[structopt(name = "monica", about = "DataXone(SuperSync) interim Patch Installer")]
 pub struct Opt {
     #[structopt(subcommand)]
     pub command: Command, 
@@ -656,7 +656,7 @@ pub fn get_yrba_file_name() -> String {
 // }
 
 pub fn abnormal_exit_precheck(cause: &str){
-    println!("PreChecks failure:");
+    println!("PreChecks failed:");
     println!("  CAUSE: {}", cause);
     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
     println!("Bye.");
@@ -664,7 +664,7 @@ pub fn abnormal_exit_precheck(cause: &str){
 }
 
 // pub fn abnormal_exit_patch(flag: &str,cause: &str){
-//     println!("Patch failure:");
+//     println!("Patch failed:");
 //     println!("  CAUSE: {}", cause);
 //     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
 //     println!("Bye.");
@@ -673,7 +673,7 @@ pub fn abnormal_exit_precheck(cause: &str){
 
 pub fn abnormal_exit_data_empty(rid: usize, index: usize){
     error!("Data check failed: Data empty");
-    println!("PreChecks failure:");
+    println!("PreChecks failed:");
     println!("  CAUSE: {}", format!("Row {} column {} cannot be empty", rid, char::from(index as u8 +65)));
     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
     println!("Bye.");
@@ -682,7 +682,7 @@ pub fn abnormal_exit_data_empty(rid: usize, index: usize){
 
 
 pub fn abnormal_exit_backup(cause: &str){
-    println!("Backup failure:");
+    println!("Backup failed:");
     println!("  CAUSE: {}", cause);
     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
     println!("Bye.");
@@ -690,7 +690,7 @@ pub fn abnormal_exit_backup(cause: &str){
 }
 
 pub fn abnormal_exit_patch(cause: &str){
-    println!("Patch apppy failure:");
+    println!("Patch apppy failed:");
     println!("  CAUSE: {}", cause);
     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
     println!("Bye.");

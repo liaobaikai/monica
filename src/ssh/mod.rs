@@ -6,10 +6,14 @@ use log::{debug, info, error};
 use ssh2::Session;
 use std::io::prelude::*;
 
-use crate::{config::{self, get_chunk_size, get_yrba_file_name, Server, BACKUPUP_DIR, BACKUPUP_FILE_PREFIX, BACKUPUP_RECYCLE_BIN_DIR, BACKUPUP_SHA256SUM_FILENAME, BACKUPUP_TMP_DIR}, file::{self, get_filesize, path_join}};
+use crate::{cmd::JDDM_START_WITH_FILE, config::{self, get_chunk_size, get_yrba_file_name, Server, BACKUPUP_DIR, BACKUPUP_FILE_PREFIX, BACKUPUP_RECYCLE_BIN_DIR, BACKUPUP_SHA256SUM_FILENAME, BACKUPUP_TMP_DIR}, file::{self, get_filesize, path_join}};
+
+// const SSH_KEEPALIVE_INTERVAL: usize = 5;
+const SSH_TOTAL_RETRY_COUNT: usize = 10;
 
 #[derive(Clone)]
 pub struct Client {
+    s: Server,
     sess: Session,
     host: String,
     rid: usize
@@ -17,36 +21,16 @@ pub struct Client {
 
 impl Client {
 
-    pub fn new(flag: &str, s: &Server) -> Self {
-        // 新建连接
-        let tcp = match TcpStream::connect(format!("{}:{}", s.hostname, s.port)) {
-            Ok(tcp) => tcp,
-            Err(e) => {
-                // 无法链接到对应的端口
-                error!("xlsx:Line: {:<2} Host: {}:{}, Session create failure, Cause: {}", s.rid, s.hostname, s.port, e);
-                exit(-1);
-            }
-        };
-        let mut sess = Session::new().unwrap();
-        sess.set_tcp_stream(tcp);
-        match sess.handshake() {
-            Ok(()) => {},
-            Err(e) => {
-                error!("xlsx:Line: {:<2} Host: {}:{}, Session create failure", s.rid, s.hostname, s.port);
-                abnormal_exit(flag, e);
-            }
-        }
-        let pwd = &s.password.clone().unwrap();
-        match sess.userauth_password(&s.username, pwd) {
-            Ok(()) => {},
-            Err(e) => {
-                error!("xlsx:Line: {:<2} Host: {}:{}, Session create failure", s.rid, s.hostname, s.port);
-                abnormal_exit(flag, e);
-            }
-        }
-        info!("xlsx:Line: {:<2} Connected to server {}:{}", s.rid, s.hostname, s.port);
+    pub fn new(s: &Server) -> Self {
+        let sess = connect_ssh(s).unwrap();
 
-        Client{ sess: sess, host: s.hostname.clone(), rid: s.rid}
+        let mut _s = Server::default();
+        _s.hostname = s.hostname.clone();
+        _s.port = s.port.clone();
+        _s.username = s.username.clone();
+        _s.password = s.password.clone();
+
+        Client{ s: _s, sess: sess, host: s.hostname.clone(), rid: s.rid}
     }
 
     // pub fn set_flag(&mut self, flag: String){
@@ -187,8 +171,8 @@ impl Client {
     // }
 
     // 获取正在运行的jddm参数
-    pub fn write_jddm_start_with(&self, dir_prefix: &str) -> bool {
-        let (status,_,_) = self.exec_cmd_with_status(&format!("ps -ef --cols 10240 | grep \"DPath={} \" | grep -v grep | awk '{{print $NF}}' > {}/bin/monica.started", dir_prefix, dir_prefix));
+    pub fn write_jddm_starts_with(&self, dir_prefix: &str) -> bool {
+        let (status,_,_) = self.exec_cmd_with_status(&format!("ps -ef --cols 10240 | grep \"DPath={} \" | grep DPid=JDDM_ | grep -v grep | awk '{{print $NF}}' | head -1 > {}/{}", dir_prefix, dir_prefix, JDDM_START_WITH_FILE));
         status == 0
     }
 
@@ -323,7 +307,7 @@ impl Client {
 
 
     // 向远程服务器发送文件
-    pub fn scp_send(&self, file: PathBuf, rfile: PathBuf, current: usize, counter: usize) -> bool {
+    pub fn scp_send(&mut self, file: PathBuf, rfile: PathBuf, current: usize, counter: usize) -> bool {
         let remote_file = rfile.to_string_lossy().to_string();
         // let local_file = file.to_string_lossy().to_string();
         let local_file_name = file.file_name().unwrap().to_str().unwrap();
@@ -395,9 +379,9 @@ impl Client {
             // 网络不稳定会导致报错：error: "Unable to send channel data"
             match ch.write_all(chunk) {
                 Ok(()) => {},
-                Err(e) => {
-                    error!("xlsx:Line: {:<2} Upload [{}/{}] file {} interrupted, Network not available, {}, retry again after 3s.", self.rid, current, counter, local_file_name, e);
-                    std::thread::sleep(Duration::from_secs(3));
+                Err(_) => {
+                    // error!("xlsx:Line: {:<2} Upload [{}/{}] file {} interrupted, Network not available, {}, retry again after 3s.", self.rid, current, counter, local_file_name, e);
+                    // std::thread::sleep(Duration::from_secs(3));
                     // 再次重试还是失败的话，那只能重新上传整个文件
                     match ch.write_all(chunk) {
                         Ok(()) => {},
@@ -441,14 +425,46 @@ impl Client {
                 clock = Local::now().timestamp();
                 bytes_send = 0;
             }
-
-            
         }
-        
-        ch.send_eof().unwrap();
-        ch.wait_eof().unwrap();
-        ch.close().unwrap();
-        ch.wait_close().unwrap();
+
+        let mut total_try_count = 0;
+        if let Err(e) = ch.send_eof() {
+            error!("Channel send EOF: cause: {}", e);
+            total_try_count = SSH_TOTAL_RETRY_COUNT;
+        }
+        if let Err(e) = ch.wait_eof() {
+            error!("Channel wait EOF error: cause: {}", e);
+            total_try_count = SSH_TOTAL_RETRY_COUNT;
+        }
+        if let Err(e) = ch.close() {
+            error!("Channel close error: cause: {}", e);
+            total_try_count = SSH_TOTAL_RETRY_COUNT;
+        }
+        if let Err(e) = ch.wait_close() {
+            error!("Channel wait close error: cause: {}", e);
+            total_try_count = SSH_TOTAL_RETRY_COUNT;
+        }
+
+        let mut try_count = 0;
+        while try_count < total_try_count {
+            let _sess = connect_ssh(&self.s);
+            if _sess.is_some() {
+                self.sess = _sess.unwrap();
+                self.scp_send(file.clone(), rfile.clone(), current, counter);
+                break;
+            }
+
+            error!("xlsx:Line: {:<2} Upload [{}/{}] file {} interrupted, Network not available, [{}/{}] retry again after 3s.", self.rid, current, counter, local_file_name, try_count+1, total_try_count);
+            // 休眠3秒，重试
+            std::thread::sleep(Duration::from_secs(3));
+            try_count += 1;
+            if try_count == 10 {
+                // 超过重试次数
+                // 网络异常
+                println!("ERROR: Network not available, exceeding retry attempts, exit now.");
+                exit(-1);
+            }
+        }
 
         // 计算sha256sum并写入sha256sum.txt文件
         completed & self.write_sha256sum_to_file(file, rfile) & self.move_file(&remote_tmp_file_path, &remote_file)
@@ -503,150 +519,6 @@ impl Client {
         stdout.trim_end_matches("\n") == "1"
     }
 
-    // // 向远程服务器发送文件
-    // pub fn scp_send3(&self, file: PathBuf, rfile: PathBuf) -> bool {
-    //     let remote_file = rfile.to_string_lossy().to_string();
-    //     // let local_file = file.to_string_lossy().to_string();
-    //     let local_file_name = file.file_name().unwrap().to_str().unwrap();
-    //     // info!("xlsx:Line: {:<2} Upload \"{}\"", self.rid, local_file);
-    //     info!("xlsx:Line: {:<2} Upload {} to \"{}\"", self.rid, local_file_name, remote_file);
-
-    //     // 获取本地文件的基础信息
-    //     let file_size = get_filesize(&file);
-    //     // Write the file
-    //     // 文件繁忙：
-    //     // called `Result::unwrap()` on an `Err` value: Error { code: Session(-28), msg: "failed to send file" }
-
-    //     // 避免程序正在使用/运行，先生成临时文件
-    //     let remote_tmp_file_path: &String = &format!("{}.monica", remote_file);
-    //     // 临时文件
-    //     let remote_tmp_file = Path::new(remote_tmp_file_path);
-
-    //     let mut ch;
-    //     loop {
-    //         match self.sess.scp_send(&remote_tmp_file, 0o755, file_size, None) {
-    //             Ok(c) => {
-    //                 ch = c;
-    //                 break;
-    //             },
-    //             Err(e) => {
-    //                 error!("xlsx:Line: {:<2} Upload file {:10} error: {}, retry again, sleep 3s.", local_file_name, self.rid, e);
-    //                 std::thread::sleep(Duration::from_secs(3));
-    //             }
-    //         };
-    //     }
-
-    //     let mut f = File::open(&file).unwrap();
-    //     let mut buf: Vec<u8> = Vec::new();
-    //     f.read_to_end(&mut buf).unwrap();
-        
-    //     // 文件大小
-    //     let file_kb = file_size  as f64 / 1024.0;
-    //     let col_size=format!("{:.0}",file_kb).len();
-    //     // 本次已发送字节数
-    //     let mut bytes_send = 0;
-    //     // 全部发送的字节数
-    //     let mut total_bytes_send: usize = 0;
-    //     // 块大小
-    //     let chunk_size = get_chunk_size();
-
-    //     // 当前的时钟
-    //     let mut clock = Local::now().timestamp();
-    //     // 16KB
-    //     // 1.5M => 1M
-    //     for chunk in buf.chunks(chunk_size) {
-    //         // called `Result::unwrap()` on an `Err` value: Custom { kind: Other, error: "Unable to send channel data" }
-    //         // 网络不稳定会导致报错：error: "Unable to send channel data"
-    //         match ch.write_all(chunk) {
-    //             Ok(()) => {},
-    //             Err(e) => {
-    //                 error!("xlsx:Line: {:<2} Upload file {} interrupted, Network not available, {}, retry again after 3s.", self.rid, local_file_name, e);
-    //                 std::thread::sleep(Duration::from_secs(3));
-    //                 // 再次重试还是失败的话，那只能重新上传整个文件
-    //                 match ch.write_all(chunk) {
-    //                     Ok(()) => {},
-    //                     Err(e) => {
-    //                         error!("xlsx:Line: {:<2} Upload file {} interrupted, Network not available, {}", self.rid, local_file_name, e);
-    //                         break;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //         bytes_send += chunk.len();
-    //         total_bytes_send += chunk.len();
-
-    //         let p = (total_bytes_send as f64 * 100.0 / file_size as f64).floor();
-    //         let total_send_kb = (total_bytes_send  as f64 / 1024.0).ceil();
-
-    //         // 1、如果传输已经到100%，则不用输出如下日志
-    //         if total_bytes_send as u64 >= file_size {
-    //             // 速度：平均一秒的速度
-    //             let speed_kb: f64 = (bytes_send as f64 / 1024.0 / 1.0).ceil();
-    //             info!("xlsx:Line: {:<2} TX {} {:>3.0}% {:col_size$.0}KiB / {:.0}KiB {:col_size$.0}KiB/s Done", self.rid, local_file_name, p, total_send_kb, file_kb, speed_kb);
-    //             break;
-    //         }
-
-    //         // 当前的时钟：相差多少秒
-    //         let new_clock = Local::now().timestamp();
-    //         let duration_sec = new_clock - clock;
-    //         if duration_sec > 0 {
-    //             // 速度计算
-    //             let mut speed_kb = (bytes_send as f64 / 1024.0 / duration_sec as f64).ceil();
-    //             if speed_kb == 0.0 {
-    //                 speed_kb = 1.0;
-    //             }
-    //             // 计算用时
-    //             // 2、传输文件较大，需要拆分成为多次传输，每次打印的信息按秒打印
-    //             let eta_secs = (file_kb - total_send_kb) / speed_kb;
-    //             let eta = eta_format(eta_secs as u64);
-    //             info!("xlsx:Line: {:<2} TX {} {:>3.0}% {:col_size$.0}KiB / {:.0}KiB {:col_size$.0}KiB/s {} ETA", self.rid, local_file_name, p, total_send_kb, file_kb, speed_kb, eta);
-    //             // 重置计时器
-    //             clock = Local::now().timestamp();
-    //             bytes_send = 0;
-    //         }
-
-            
-    //     }
-        
-    //     ch.send_eof().unwrap();
-    //     ch.wait_eof().unwrap();
-    //     ch.close().unwrap();
-    //     ch.wait_close().unwrap();
-
-
-    //     // 重命名文件 后 再验证文件
-    //     self.move_file(&remote_tmp_file_path, &remote_file).verify_file(file, rfile);
-
-    //     true
-
-    // }
-
-
-    // // 验证文件
-    // // 检查执行权限和版本信息是否有效
-    // // 最有效的方式就是直接执行一次，看看是否会执行失败
-    // // DBPS_HOME/bin/<file> -v
-    // fn verify_file(&self, file: PathBuf, rfile: PathBuf) -> &Self {
-
-    //     // 计算本地文件的sha256
-    //     // https://docs.rs/sha256/latest/sha256/
-    //     let remote_file = rfile.to_string_lossy().to_string();
-    //     let local_file_name = file.file_name().unwrap().to_str().unwrap();
-    //     let stdout = self.exec_cmd(&format!("sha256sum \"{}\" | awk '{{print $1}}'", remote_file));
-    //     let remote_file_sha256 = stdout.trim_end_matches("\n");
-    //     if remote_file_sha256 == fxx::sha256sum(file) {
-    //         info!("xlsx:Line: {:<2} File {} sha256sum verify passed", self.rid, local_file_name);
-    //     } else {
-    //         // SHA-256sum 校验失败
-    //         // 校验失败后重新上传
-    //         error!("xlsx:Line: {:<2} File {} sha256sum verify failed, re-upload after 3s", self.rid, local_file_name);
-    //         std::thread::sleep(Duration::from_secs(3));
-    //         self.scp_send(file, rfile);
-    //     }
-
-    //     self
-    // }
-
     
 }
 
@@ -664,10 +536,39 @@ fn get_index_file() -> String {
     index_file
 }
 
-fn abnormal_exit(flag: &str, e: ssh2::Error){
-    println!("{} failure:", flag);
-    println!("  CAUSE: {}", e);
-    println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
-    println!("Bye.");
-    exit(-1);
+fn connect_ssh(s: &Server) -> Option<Session> {
+    // 新建连接
+    let tcp = match TcpStream::connect(format!("{}:{}", s.hostname, s.port)) {
+        Ok(tcp) => tcp,
+        Err(e) => {
+            // 无法链接到对应的端口
+            error!("xlsx:Line: {:<2} Host: {}:{}, Session create failed, Cause: {}", s.rid, s.hostname, s.port, e);
+            return None;
+        }
+    };
+    let mut sess = Session::new().unwrap();
+    sess.set_tcp_stream(tcp);
+    match sess.handshake() {
+        Ok(()) => {},
+        Err(e) => {
+            error!("xlsx:Line: {:<2} Host: {}:{}, Server handshake failed, cause: {}", s.rid, s.hostname, s.port, e);
+            return None;
+        }
+    }
+    let pwd = &s.password.clone().unwrap();
+    match sess.userauth_password(&s.username, pwd) {
+        Ok(()) => {},
+        Err(e) => {
+            error!("xlsx:Line: {:<2} Host: {}:{}, Server auth failed, cause: {}", s.rid, s.hostname, s.port, e);
+            return None;
+        }
+    }
+    info!("xlsx:Line: {:<2} Connected to server {}:{}", s.rid, s.hostname, s.port);
+    if let Err(e) = sess.set_banner("monica") {
+        info!("xlsx:Line: {:<2} Update server {}:{} set_banner error, cause: {}", s.rid, s.hostname, s.port, e);
+    }
+    // 
+    // sess.set_keepalive(true, SSH_KEEPALIVE_INTERVAL as u32);
+    
+    Some(sess)
 }

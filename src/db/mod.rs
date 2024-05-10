@@ -17,8 +17,8 @@ pub struct DBInfo {
 
 #[derive(Debug, FromRow)]
 pub struct YRBA {
-    LSCN: Option<String>,
-    UCMT_SCN: Option<String>,
+    lscn: Option<String>,
+    ucmt_scn: Option<String>,
 }
 
 pub const DB_NAME: &'static str = "dataxone_pmon";
@@ -56,7 +56,7 @@ impl Client {
     }
 
     pub async fn query_log_pos(&self, s: &Server) -> Option<String> {
-        let sql = format!("select LSCN, UCMT_SCN from {}.yrba where qnm = ?", DB_NAME);
+        let sql = format!("select LSCN as lscn, UCMT_SCN as ucmt_scn from {}.yrba where qnm = ?", DB_NAME);
 
         // thread 'monica' panicked at src\db\mod.rs:54:102:
         // called `Result::unwrap()` on an `Err` value: PoolTimedOut
@@ -75,12 +75,12 @@ impl Client {
             None
         } else {
             let row: &YRBA = rows.iter().next().unwrap();
-            let mut yrba = match &row.LSCN {
+            let mut yrba = match &row.lscn {
                 Some(value) => format!("{},", value),
                 None => String::from(",")
             };
     
-            yrba = match &row.UCMT_SCN {
+            yrba = match &row.ucmt_scn {
                 Some(value) => format!("{}{}", yrba, value),
                 None => format!("{}", yrba),
             };

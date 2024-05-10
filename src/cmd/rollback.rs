@@ -113,7 +113,7 @@ pub async fn handle_command_rollback(worker_threads: usize) {
 // 回退操作
 async fn start_rollback_worker(checksum: &str, c: &db::Client, c0: Arc<Mutex<usize>>, s: &Server) {
     // 连接到复制机，需考虑异机部署
-    let ssh = ssh::Client::new("", s);
+    let ssh = ssh::Client::new(s);
     // 打印进度条
     print_counter(c0);
 
@@ -334,7 +334,7 @@ fn rollback_remote_files(dbps_home: &str, ssh: &ssh::Client, xlsx_checksum: &str
 
 
 pub fn abnormal_exit_rollback(cause: &str){
-    println!("Rollback failure:");
+    println!("Rollback failed:");
     println!("  CAUSE: {}", cause);
     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
     println!("Bye.");

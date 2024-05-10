@@ -52,7 +52,7 @@ pub fn get_filesize(file: &PathBuf) -> u64{
 }
 
 pub fn abnormal_exit_not_found(){
-    println!("PreChecks failure:::");
+    println!("PreChecks failed:");
     println!("  CAUSE: No such file or directory");
     println!("  ACTION: Contact DSG Support Services or refer to the software manual.");
     println!("Bye.");

@@ -5,7 +5,7 @@ use structopt::StructOpt;
 use tokio::runtime;
 use crate::{cmd::query_log_position, config::{self, Command, Manifest, Opt, Server}, db, file, ssh};
 
-use super::{error, get_last_datetime, log, print_counter};
+use super::{error, get_last_datetime, log, print_counter, JDDM_START_WITH_FILE};
 
 
 // 备份事件处理
@@ -56,11 +56,11 @@ pub async fn handle_command_backup(worker_threads: usize){
 // 如果上传过程中失败，则需要自动回退操作
 async fn start_backup_worker(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<usize>>, s: &Server){
     
-    // 连接到复制机，需考虑异机部署
-    let ssh = ssh::Client::new("", s);
     let (_, yrba_dat) = query_log_position(s, c.clone()).await;
     // if current_log_position() {
     // }
+    // 连接到复制机，需考虑异机部署
+    let ssh = ssh::Client::new(s);
     
     print_counter(c0);
 
@@ -116,7 +116,7 @@ fn start_dt_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data
                     file::write_backup_checkpoint(&dbps_home, s, config::ROLE_DT, xlsx_checksum);
                 }
             },
-            None => error(s, &dbps_home, "Oracle version read failure <<<")
+            None => error(s, &dbps_home, "Oracle version read failed <<<")
         },
         Err(e) => config::abnormal_exit_backup(&e)
     }
@@ -172,8 +172,8 @@ fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_da
 
             // 将启动参数写入到 $dbps_home/bin/monica.started 中
             // ./startJddmKafkaEngine.sh start <service_name> <jddm_state>
-            if ssh.write_jddm_start_with(&dbps_home) {
-                log(s, &dbps_home, "Jddm_start_with written to $dbps_home/bin/monica.started");
+            if ssh.write_jddm_starts_with(&dbps_home) {
+                log(s, &dbps_home, &format!("Jddm_starts_with written to {}", JDDM_START_WITH_FILE));
             }
 
             let manifest = config::get_jddm_manifest(input);
@@ -231,7 +231,7 @@ fn start_ds_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str, yrba_data
                     file::write_backup_checkpoint(&dbps_home, s, config::ROLE_DS, xlsx_checksum);
                 }
             },
-            None => error(s, &dbps_home, "Oracle version read failure <<<")
+            None => error(s, &dbps_home, "Oracle version read failed <<<")
         },
         Err(e) => config::abnormal_exit_backup(&e)
     }

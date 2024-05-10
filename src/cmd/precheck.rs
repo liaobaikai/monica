@@ -57,7 +57,7 @@ pub async fn start_precheck_worker(c: Arc<Mutex<usize>>, s: &Server){
     print_counter(c);
 
     // 连接到复制机，需考虑异机部署
-    let ssh = ssh::Client::new("", s);
+    let ssh = ssh::Client::new(s);
     start_ds_worker(&ssh, s);
     start_dt_worker(&ssh, s);
     start_jddm_worker(&ssh, s);
@@ -87,8 +87,8 @@ fn start_dt_worker(ssh: &ssh::Client, s: &Server){
     match config::get_dt_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
         Some(manifest) => do_precheck_files(s, &dbps_home, manifest, &ssh),
         None => {
-            error(s, &dbps_home, "Oracle version read failure");
-            config::abnormal_exit_precheck("Oracle version read failure");
+            error(s, &dbps_home, "Oracle version read failed");
+            config::abnormal_exit_precheck("Oracle version read failed");
         }
     }
         
@@ -144,8 +144,8 @@ fn start_ds_worker(ssh: &ssh::Client, s: &Server){
     match config::get_ds_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
         Some(manifest) => do_precheck_files(s, &dbps_home, manifest, &ssh),
         None => {
-            error(s, &dbps_home, "Oracle version read failure");
-            config::abnormal_exit_precheck("Oracle version read failure");
+            error(s, &dbps_home, "Oracle version read failed");
+            config::abnormal_exit_precheck("Oracle version read failed");
         }
     }
         

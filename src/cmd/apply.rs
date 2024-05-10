@@ -48,19 +48,19 @@ pub async fn handle_command_xpatch(worker_threads: usize) {
 // 启动任务
 async fn start_xpatch_worker(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<usize>>, s: &Server) {
     // 连接到复制机，需考虑异机部署
-    let ssh = ssh::Client::new("", s);
+    let mut ssh = ssh::Client::new(s);
     // 打印进度
     cmd::print_counter(c0);
 
-    start_ds_worker(&ssh, c, s, xlsx_checksum).await;
-    start_dt_worker(&ssh, c, s, xlsx_checksum).await;
-    start_jddm_worker(&ssh, c, s, xlsx_checksum).await;
+    start_ds_worker(&mut ssh, c, s, xlsx_checksum).await;
+    start_dt_worker(&mut ssh, c, s, xlsx_checksum).await;
+    start_jddm_worker(&mut ssh, c, s, xlsx_checksum).await;
 
     info!("xlsx:Line: {:<2} Host: {}, Service: {}, Patch completed", &s.rid, &s.hostname, &s.service_name);
 }
 
 
-async fn start_dt_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+async fn start_dt_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -97,8 +97,8 @@ async fn start_dt_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
     cmd::log(s, &dbps_home, &format!("B-Start:{}, A-Start:{}", starting, starting2));
 
     match config::get_dt_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
-        Some(manifest) => patch_remote_files(config::ROLE_DT, manifest, &dbps_home, &ssh, &s, xlsx_checksum),
-        None => cmd::error(s, &dbps_home, "Oracle version read failure <<<")
+        Some(manifest) => patch_remote_files(config::ROLE_DT, manifest, &dbps_home, ssh, &s, xlsx_checksum),
+        None => cmd::error(s, &dbps_home, "Oracle version read failed <<<")
     }
 
     // 写入检查点文件
@@ -120,7 +120,7 @@ async fn start_dt_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
 
 }
 
-async fn start_jddm_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+async fn start_jddm_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -162,7 +162,7 @@ async fn start_jddm_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_c
     cmd::log(s, &dbps_home, &format!("B-Start: {}, A-Start: {}", starting, starting2));
 
     let manifest = config::get_jddm_manifest(input);
-    patch_remote_files(config::ROLE_JDDM, manifest, &dbps_home, &ssh, &s, xlsx_checksum);
+    patch_remote_files(config::ROLE_JDDM, manifest, &dbps_home, ssh, &s, xlsx_checksum);
 
     // 写入检查点文件
     file::write_checkpoint(&dbps_home, s, config::ROLE_JDDM, xlsx_checksum);
@@ -184,7 +184,7 @@ async fn start_jddm_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_c
 
 }
 
-async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+async fn start_ds_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.src_type {
         Some(s) => s,
@@ -223,8 +223,8 @@ async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
     cmd::log(s, &dbps_home, &format!("B-Start:{}, A-Start:{}", starting, starting2));
 
     match config::get_ds_manifest(input, ssh.get_ss_version(&input, &dbps_home)) {
-        Some(manifest) => patch_remote_files(config::ROLE_DS, manifest, &dbps_home, &ssh, &s, xlsx_checksum),
-        None => cmd::error(s, &dbps_home, "Oracle version read failure <<<")
+        Some(manifest) => patch_remote_files(config::ROLE_DS, manifest, &dbps_home, ssh, &s, xlsx_checksum),
+        None => cmd::error(s, &dbps_home, "Oracle version read failed <<<")
     }
 
     // 写入检查点文件
@@ -252,7 +252,7 @@ async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
 
 // 升级文件：上传文件
 // 本地生成sha256sum.txt文件
-fn patch_remote_files(role: usize, manifest: &Manifest, dbps_home: &str, ssh: &ssh::Client, s: &Server, xlsx_checksum: &str){
+fn patch_remote_files(role: usize, manifest: &Manifest, dbps_home: &str, ssh: &mut ssh::Client, s: &Server, xlsx_checksum: &str){
 
     // 里面记录了文件上传的断点信息
     ssh.remove_sha256sum_file(dbps_home);
@@ -288,7 +288,7 @@ fn patch_remote_files(role: usize, manifest: &Manifest, dbps_home: &str, ssh: &s
     // xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx bin/bbbb.monica   
     // 校验通过后，可以将备份文件挪出到.monica目录中并写入 backupset.index 文件
     if ssh.verify_sha256sum_file(dbps_home)  {
-        cmd::log(s, dbps_home, "Files sha256sum verify passed");
+        cmd::log(s, dbps_home, "File check passed");
 
         // 检查文件是否存在
         let (exists, backupset_file_name) = ssh.exists_backupset(xlsx_checksum, dbps_home);
@@ -306,7 +306,7 @@ fn patch_remote_files(role: usize, manifest: &Manifest, dbps_home: &str, ssh: &s
             Err(e) => config::abnormal_exit_patch(&e)
         }
     } else {
-        cmd::log(s, dbps_home, "Files sha256sum verify failed");
+        cmd::log(s, dbps_home, "File check failed");
     }
 
     // ssh.remove_sha256sum_file(dbps_home);
