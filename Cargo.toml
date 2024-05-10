@@ -1,6 +1,6 @@
 [package]
 name = "monica"
-version = "0.1.3"
+version = "0.1.4"
 edition = "2021"
 authors = ["liaobaikai@dsgdata.com"]
 description = "DataXone(SuperSync) interim Patch Installer"
