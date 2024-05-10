@@ -1,0 +1,46 @@
+{
+    // 使用 IntelliSense 了解相关属性。 
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'monica'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=monica",
+                    "--package=monica"
+                ],
+                "filter": {
+                    "name": "monica",
+                    "kind": "bin"
+                }
+            },
+            "args": ["precheck", "--basedir=C:\\Users\\BK-liao\\Documents", "--input-file=C:\\Users\\BK-liao\\monica\\123.xlsx", "--manifest-file=C:\\Users\\BK-liao\\monica\\manifest.json"],
+            "cwd": "${workspaceFolder}",
+            "env": {"BUILD_TIME":"%date:~0,4%-%date:~5,2%-%date:~8,2%"}
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'monica'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=monica",
+                    "--package=monica"
+                ],
+                "filter": {
+                    "name": "monica",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

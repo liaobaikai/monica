@@ -14,7 +14,7 @@ mod ssh;
 mod file;
 mod cmd;
 
-fn print_info(log_file: &str){
+fn print_title(log_file: &str){
     // :: /data/dataxone/
     let basedir = get_basedir();
     // :: .monica
@@ -24,12 +24,15 @@ fn print_info(log_file: &str){
     let log_file_output = env::current_dir().unwrap().display().to_string();
 
     // 获取编译的时间
-    let key: Option<&'static str> = option_env!("BUILD_TIME");
+    let key = match option_env!("BUILD_TIME") {
+        Some(k) => format!(", build {}", k),
+        None => String::new()
+    };
 
     // 创建日志目录
     fs::create_dir_all(format!("{}/{}/logs", log_file_output, &datadir)).unwrap();
 
-    println!("\n{} {}, build {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), key.unwrap());
+    println!("\n{} {}{}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"), key);
     println!("{} version {}", env!("CARGO_PKG_DESCRIPTION"), env!("CARGO_PKG_VERSION"));
     println!("copyright (c) 2024, dsgdata.com.  All rights reserved.");
     println!("Authors           : {}", env!("CARGO_PKG_AUTHORS"));
@@ -49,7 +52,6 @@ fn print_info(log_file: &str){
 #[tokio::main]
 async fn main() -> Result<(), sqlx::Error>{
     let opt: config::Opt = config::Opt::from_args();
-
 
     let log_prefix= match opt.command {
         Command::Precheck(_)=> {
@@ -76,7 +78,7 @@ async fn main() -> Result<(), sqlx::Error>{
     let log_file_name = format!("monica-{}-{}.log", log_prefix, Local::now().format("%Y-%m-%d_%H%M%S"));
     let log_file = format!("{}/{}", log_dir, log_file_name);
     
-    print_info(&log_file);
+    print_title(&log_file);
 
     let mut level = LevelFilter::Info;
     if get_debug() {
