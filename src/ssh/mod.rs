@@ -40,29 +40,29 @@ impl Client {
     pub fn exec_cmd_with_status(&self, command: &str) -> (i32, String, String) {
 
         debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: `{}`", self.rid, self.host, command);
+        self.sess.set_blocking(false);
         let mut channel = self.sess.channel_session().unwrap();
         channel.exec(command).unwrap();
         let mut stdout = String::new();
         channel.read_to_string(&mut stdout).unwrap();
         let mut stderr = String::new();
         channel.stderr().read_to_string(&mut stderr).unwrap();
-        let status = channel.exit_status().unwrap();
 
         channel.wait_close().unwrap();
-
+        let status = channel.exit_status().unwrap();
         debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: status={}, stdout={}, stderr={}", self.rid, self.host, status, stdout.replace("\n", "\\n"), stderr.replace("\n", "\\n"));
         (status, stdout, stderr)
     }
 
-    pub fn exec_cmd_no_result(&self, command: &str) {
+    // pub fn exec_cmd_no_result(&self, command: &str) {
 
-        debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: `{}`", self.rid, self.host, command);
-        let mut channel = self.sess.channel_session().unwrap();
-        channel.exec(command).unwrap();
-        channel.wait_close().unwrap();
+    //     debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: `{}`", self.rid, self.host, command);
+    //     let mut channel = self.sess.channel_session().unwrap();
+    //     channel.exec(command).unwrap();
+    //     channel.wait_close().unwrap();
 
-        debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: Discard Response", self.rid, self.host)
-    }
+    //     debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: Discard Response", self.rid, self.host)
+    // }
 
     pub fn exec_cmd(&self, command: &str) -> String {
         let (_, stdout, _) = self.exec_cmd_with_status(command);
