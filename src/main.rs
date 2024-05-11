@@ -3,7 +3,7 @@ use std::{env, fs, io, path::Path, process::exit};
 use chrono::Local;
 use config::{get_debug, Command};
 use log::LevelFilter;
-use log4rs::{append::{console::ConsoleAppender, file::FileAppender}, config::{Appender, Logger, Root}, encode::pattern::PatternEncoder, Config};
+use log4rs::{append::{console::ConsoleAppender, file::FileAppender}, config::{Appender, Root}, encode::pattern::PatternEncoder, Config};
 use cmd::{backup::handle_command_backup, lsinventory::handle_command_lsinventory, precheck::handle_command_precheck, rollback::handle_command_rollback};
 use structopt::StructOpt;
 use crate::config::{get_basedir, get_datadir, get_input_file, get_manifest_file};
@@ -93,11 +93,11 @@ async fn main() -> Result<(), sqlx::Error>{
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
         .appender(Appender::builder().build("file", Box::new(file)))
-        .logger(Logger::builder().build("sqlx_core::logger", LevelFilter::Info))
+        // .logger(Logger::builder().build("sqlx_core::logger", LevelFilter::Info))
         // .logger(Logger::builder()
-        //     .appender("requests")
+        //     .appender("file")
         //     .additive(false)
-        //     .build("app::requests", LevelFilter::Info))
+        //     .build("sqlx_core", LevelFilter::Info))
         .build(Root::builder().appender("stdout").appender("file").build(level))
         .unwrap();
     let _ = log4rs::init_config(config).unwrap();
