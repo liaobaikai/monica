@@ -82,7 +82,7 @@ pub fn clean_monica_cache_file(dbps_home: &str, ssh: &ssh::Client){
 }
 
 // 启动任务
-// 如果脚本启动不加 >/dev/null的话，会话会一直等待数据返回，导致无法下一步。
+// 如果脚本启动不加 “  >/dev/null 2>&1  ” 的话，会话会一直等待数据返回，导致无法下一步。
 pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
 
     // 启动参数
