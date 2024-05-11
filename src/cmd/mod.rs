@@ -94,7 +94,7 @@ pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
     stdout = ssh.exec_cmd("env | grep JAVA_HOME");
     let java_home = stdout.trim_end_matches("\n");
     
-    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export {} && export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {}", 
+    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export {} && export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null 2>&1", 
         java_home, dbps_home, START_JDDM_M_SCRIPT, s.service_name, escape_starts_with));
     if status == 0 {
         log(s, dbps_home, "Startup command has been issued");
@@ -102,7 +102,7 @@ pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
         error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
     }
 
-    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export {} && export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {}", 
+    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export {} && export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null 2>&1", 
         java_home, dbps_home, START_JDDM_SCRIPT, s.service_name, escape_starts_with));
     if status == 0 {
         log(s, dbps_home, "Startup command has been issued");

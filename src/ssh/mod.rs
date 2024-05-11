@@ -45,7 +45,7 @@ impl Client {
         let mut stdout = String::new();
         channel.read_to_string(&mut stdout).unwrap();
         let mut stderr: String = String::new();
-        // channel.stderr().read_to_string(&mut stderr).unwrap();
+        channel.stderr().read_to_string(&mut stderr).unwrap();
 
         channel.wait_close().unwrap();
         let status = channel.exit_status().unwrap();
