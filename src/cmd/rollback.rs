@@ -264,15 +264,6 @@ async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
         return;
     }
 
-    // 从远端文件中获取位点信息
-    let valid_log_pos;
-    let yrba_dat;
-    if current_log_position() {
-        (valid_log_pos, yrba_dat) = query_log_position(s, c.clone()).await;
-    } else {
-        (valid_log_pos, yrba_dat) = read_log_position(&ssh, &dbps_home, s);
-    }
-
     // 停止程序
     let (starting, starting2) = ssh.kill_ps(&format!("{}/bin/", dbps_home));
     log(s, &dbps_home, &format!("B-Start: {}, A-Start: {}", starting, starting2));
@@ -282,6 +273,15 @@ async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
 
     // 文件上传完成后重置任务
     clean_ds(s, &dbps_home, &ssh);
+
+    // 从远端文件中获取位点信息
+    let valid_log_pos;
+    let yrba_dat;
+    if current_log_position() {
+        (valid_log_pos, yrba_dat) = query_log_position(s, c.clone()).await;
+    } else {
+        (valid_log_pos, yrba_dat) = read_log_position(&ssh, &dbps_home, s);
+    }
 
     if valid_log_pos {
         // 写入yrba文件

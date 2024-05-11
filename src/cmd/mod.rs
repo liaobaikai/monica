@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use comfy_table::Table;
-use log::{debug, error, info};
+use log::{error, info};
 
 use crate::{config::{self, current_log_position, Server, YRBA_FILENAME}, db, file::read_local_inventory_index, ssh};
 
@@ -16,12 +16,17 @@ pub const START_JDDM_M_SCRIPT: &str = "startMonitorJddmEngine.sh";
 pub const START_JDDM_SCRIPT: &str = "startJddmKafkaEngine.sh";
 pub const JDDM_START_WITH_FILE: &str = "bin/monica.started";
 
-// pub trait Command {
-
-//     async fn start(worker_threads: usize);
-
-//     async fn run(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<usize>>, s: &Server);
-    
+// pub trait Worker {
+//     async fn build(&self);
+//     async fn run(&self, xlsx_checksum: &str, dbc: &db::Client, counter: Arc<Mutex<usize>>, server: &Server);
+//     // 启动ds运行
+//     async fn run_ds_worker(&self, xlsx_checksum: &str, ssh: &ssh::Client, server: &Server);
+//     // 启动dt运行
+//     fn run_dt_worker(&self, xlsx_checksum: &str, ssh: &ssh::Client, server: &Server);
+//     // 启动jddm运行
+//     fn run_jddm_worker(&self, xlsx_checksum: &str, ssh: &ssh::Client, server: &Server);
+//     //
+//     fn do_work(&self, xlsx_checksum: &str, role: usize, manifest: &Manifest, dbps_home: &str, ssh: &mut ssh::Client, server: &Server);
 // }
 
 // 通用步骤

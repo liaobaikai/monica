@@ -346,16 +346,19 @@ pub fn get_xlsx_start_with() -> usize {
     }
 }
 
-// pub fn get_worker_threads() -> usize {
-//     match Opt::from_args().command {
-//         Command::Patch(a) => {
-//             a.worker_threads
-//         },
-//         Command::Check(a) | Command::Rollback(a) => {
-//             a.worker_threads
-//         },
-//     }
-// }
+pub fn get_worker_threads() -> usize {
+    match Opt::from_args().command {
+        Command::Patch(a) | Command::Rollback(a)  | Command::Backup(a)  => {
+            a.worker_threads
+        },
+        Command::Precheck(a) => {
+            a.worker_threads
+        },
+        _ => {
+            1
+        }
+    }
+}
 
 pub fn get_chunk_size() -> usize {
     match Opt::from_args().command {
