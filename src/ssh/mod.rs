@@ -54,6 +54,16 @@ impl Client {
         (status, stdout, stderr)
     }
 
+    pub fn exec_cmd_no_result(&self, command: &str) {
+
+        debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: `{}`", self.rid, self.host, command);
+        let mut channel = self.sess.channel_session().unwrap();
+        channel.exec(command).unwrap();
+        channel.wait_close().unwrap();
+
+        debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: Discard Response", self.rid, self.host)
+    }
+
     pub fn exec_cmd(&self, command: &str) -> String {
         let (_, stdout, _) = self.exec_cmd_with_status(command);
         stdout
