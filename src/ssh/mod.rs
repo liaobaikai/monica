@@ -44,12 +44,11 @@ impl Client {
         channel.exec(command).unwrap();
         let mut stdout = String::new();
         channel.read_to_string(&mut stdout).unwrap();
-        channel.wait_close().unwrap();
-        
         let mut stderr = String::new();
         channel.stderr().read_to_string(&mut stderr).unwrap();
-        
         let status = channel.exit_status().unwrap();
+
+        channel.wait_close().unwrap();
 
         debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: status={}, stdout={}, stderr={}", self.rid, self.host, status, stdout.replace("\n", "\\n"), stderr.replace("\n", "\\n"));
         (status, stdout, stderr)

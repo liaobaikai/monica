@@ -86,27 +86,31 @@ pub fn clean_monica_cache_file(dbps_home: &str, ssh: &ssh::Client){
 pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
 
     // 启动参数
-    let stdout = ssh.exec_cmd(&format!("cat {}/{}", dbps_home, JDDM_START_WITH_FILE));
+    let mut stdout = ssh.exec_cmd(&format!("cat {}/{}", dbps_home, JDDM_START_WITH_FILE));
     let starts_with = stdout.trim_end_matches("\n");
     let escape_starts_with = serde_json::to_string(starts_with).unwrap();
+
+    // 获取java_home
+    stdout = ssh.exec_cmd("env | grep JAVA_HOME");
+    let java_home = stdout.trim_end_matches("\n");
     
+    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export {} && export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null", 
+        java_home, dbps_home, START_JDDM_M_SCRIPT, s.service_name, escape_starts_with));
+    if status == 0 {
+        log(s, dbps_home, "Startup command has been issued");
+    } else {
+        error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
+    }
+
+    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export {} && export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null", 
+        java_home, dbps_home, START_JDDM_SCRIPT, s.service_name, escape_starts_with));
+    if status == 0 {
+        log(s, dbps_home, "Startup command has been issued");
+    } else {
+        error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
+    }
+
     // 清理垃圾文件
-    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null", 
-                    dbps_home, START_JDDM_M_SCRIPT, s.service_name, escape_starts_with));
-    if status == 0 {
-        log(s, dbps_home, "Startup command has been issued");
-    } else {
-        error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
-    }
-
-    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null", 
-                    dbps_home, START_JDDM_SCRIPT, s.service_name, escape_starts_with));
-    if status == 0 {
-        log(s, dbps_home, "Startup command has been issued");
-    } else {
-        error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
-    }
-
     clean_monica_cache_file(dbps_home, ssh);
 }   
 
