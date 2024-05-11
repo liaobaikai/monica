@@ -151,11 +151,6 @@ fn start_jddm_worker(ssh: &mut ssh::Client, s: &Server, xlsx_checksum: &str){
     // 文件上传完成后重置任务
     cmd::clean_jddm(s, &dbps_home, &ssh);
 
-    // if !valid_log_pos {
-    //     cmd::log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-    //     return;        
-    // }
-
     if starting {
         cmd::startup_jddm(s, &dbps_home, &ssh);
     } else {
@@ -176,7 +171,6 @@ async fn start_ds_worker(ssh: &mut ssh::Client, c: &db::Client, s: &Server, xlsx
         None => return
     };
     
-    // if let Some(input) = &s.src_type {
     if let Some(ckp) = file::read_checkpoint(s, config::ROLE_DS, xlsx_checksum) {
         // 查询到检查点
         cmd::log(s, &ckp.split(":").nth(0).unwrap(), &format!("Patch applied on {}", cmd::get_last_datetime(&ckp)));

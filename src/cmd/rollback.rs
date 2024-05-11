@@ -6,7 +6,7 @@ use tokio::runtime;
 
 use crate::{cmd::{clean_ds, clean_dt, clean_jddm, error, get_last_datetime, log, query_log_position, startup, startup_jddm, update_yrba_file}, config::{self, current_log_position, get_db_info, Server, KFK_TYPE}, db, file::{clean_local_inventory, read_local_inventory_index}, ssh};
 
-use super::{print_counter, read_log_position};
+use super::{clean_monica_cache_file, print_counter, read_log_position};
 
 // 回退操作
 pub async fn handle_command_rollback(worker_threads: usize) {
@@ -118,14 +118,16 @@ async fn start_rollback_worker(checksum: &str, c: &db::Client, c0: Arc<Mutex<usi
     print_counter(c0);
 
     start_ds_worker(&ssh, c, s, &checksum).await;
-    start_dt_worker(&ssh, c, s, &checksum).await;
-    start_jddm_worker(&ssh, c, s, &checksum).await;
+    start_dt_worker(&ssh, s, &checksum);
+    start_jddm_worker(&ssh, s, &checksum);
+
+    
 
     info!("xlsx:Line: {:<2} Host: {}, Service: {}, Rollback completed", &s.rid, &s.hostname, &s.service_name);
 }
 
 
-async fn start_dt_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+fn start_dt_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str){
 
     if s.dst_type.is_none() {
         return;
@@ -154,15 +156,6 @@ async fn start_dt_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
         return;
     }
 
-    // 从远端文件中获取位点信息
-    let valid_log_pos;
-    if current_log_position() {
-        (valid_log_pos, _) = query_log_position(s, c.clone()).await;
-    } else {
-        (valid_log_pos, _) = read_log_position(&ssh, &dbps_home, s);
-    }
-
-
     // 停止程序
     let (starting, starting2) = ssh.kill_ps(&format!("{}/bin/", dbps_home));
     log(s, &dbps_home, &format!("B-Start: {}, A-Start: {}", starting, starting2));
@@ -173,21 +166,18 @@ async fn start_dt_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
     // 文件上传完成后重置任务
     clean_dt(s, &dbps_home, &ssh);
 
-    if !valid_log_pos {
-        log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-        return;        
-    }
-
     if starting {
         startup(s, &dbps_home, &ssh);
     } else {
         log(s, &dbps_home, "Non-Start, Skip start");
+        // 清理垃圾文件
+        clean_monica_cache_file(&dbps_home, &ssh);
     }
 
 }
 
-
-async fn start_jddm_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_checksum: &str){
+// 回退JDDM程序
+fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str){
 
     let input = match &s.dst_type {
         Some(s) => s,
@@ -222,15 +212,6 @@ async fn start_jddm_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_c
         return;
     }
 
-    // 从远端文件中获取位点信息
-    let valid_log_pos;
-    if current_log_position() {
-        (valid_log_pos, _) = query_log_position(s, c.clone()).await;
-    } else {
-        (valid_log_pos, _) = read_log_position(&ssh, &dbps_home, s);
-    }
-
-
     // 停止程序
     // ./startJddmKafkaEngine.sh start <service_name> <jddm_state>
     let (starting, starting2) = ssh.kill_ps(&format!("DPath={} ", dbps_home));
@@ -242,15 +223,11 @@ async fn start_jddm_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_c
     // 文件上传完成后重置任务
     clean_jddm(s, &dbps_home, &ssh);
 
-    if !valid_log_pos {
-        log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-        return;        
-    }
-
     if starting {
         startup_jddm(s, &dbps_home, &ssh);
     } else {
         log(s, &dbps_home, "Non-Start, Skip start");
+        clean_monica_cache_file(&dbps_home, &ssh);
     }
         
 }
@@ -293,28 +270,26 @@ async fn start_ds_worker(ssh: &ssh::Client, c: &db::Client, s: &Server, xlsx_che
         (valid_log_pos, yrba_dat) = read_log_position(&ssh, &dbps_home, s);
     }
 
-
     // 停止程序
     let (starting, starting2) = ssh.kill_ps(&format!("{}/bin/", dbps_home));
     log(s, &dbps_home, &format!("B-Start: {}, A-Start: {}", starting, starting2));
 
+    // 回退备份文件
     rollback_remote_files(&dbps_home, &ssh, xlsx_checksum);
 
     // 文件上传完成后重置任务
     clean_ds(s, &dbps_home, &ssh);
 
-    if !valid_log_pos {
-        log(s, &dbps_home, "YRBA(log position) is empty, Skip start");
-        return;
+    if valid_log_pos {
+        // 写入yrba文件
+        update_yrba_file(s, &dbps_home, &yrba_dat, &ssh);
     }
-
-    // 写入yrba文件
-    update_yrba_file(s, &dbps_home, &yrba_dat, &ssh);
 
     if starting {
         startup(s, &dbps_home, &ssh);
     } else {
         log(s, &dbps_home, "Non-Start, Skip start");
+        clean_monica_cache_file(&dbps_home, &ssh);
     }
         
 }
