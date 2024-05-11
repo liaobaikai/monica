@@ -72,7 +72,7 @@ pub fn clean_monica_cache_file(dbps_home: &str, ssh: &ssh::Client){
 // 如果脚本启动不加 >/dev/null的话，会话会一直等待数据返回，导致无法下一步。
 pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
     
-    let mut cmd = format!("export DBPS_HOME={} && cd $DBPS_HOME", dbps_home);
+    let mut cmd = format!("export DBPS_HOME={} && cd $DBPS_HOME && ", dbps_home);
     cmd = format!("{} export START_WITH=\"$(cat $DBPS_HOME/{} 2>/dev/null)\" && ", cmd, JDDM_START_WITH_FILE);
     // 清理垃圾文件
     cmd = format!("{} rm {{bin,lib,module}}/monica.* 2>/dev/null && ", cmd);
