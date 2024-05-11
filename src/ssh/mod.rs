@@ -40,13 +40,12 @@ impl Client {
     pub fn exec_cmd_with_status(&self, command: &str) -> (i32, String, String) {
 
         debug!("xlsx:Line: {:<2} Host: {}, Exec_ssh_cmd: `{}`", self.rid, self.host, command);
-        self.sess.set_blocking(false);
         let mut channel = self.sess.channel_session().unwrap();
         channel.exec(command).unwrap();
         let mut stdout = String::new();
         channel.read_to_string(&mut stdout).unwrap();
-        let mut stderr = String::new();
-        channel.stderr().read_to_string(&mut stderr).unwrap();
+        let mut stderr: String = String::new();
+        // channel.stderr().read_to_string(&mut stderr).unwrap();
 
         channel.wait_close().unwrap();
         let status = channel.exit_status().unwrap();
