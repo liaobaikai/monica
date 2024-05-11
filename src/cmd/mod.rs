@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use comfy_table::Table;
-use log::{error, info};
+use log::{debug, error, info};
 
 use crate::{config::{self, current_log_position, Server, YRBA_FILENAME}, db, file::read_local_inventory_index, ssh};
 
@@ -15,6 +15,14 @@ pub const START_SERVICE_SCRIPT: &str = "start_flow.sh";
 pub const START_JDDM_M_SCRIPT: &str = "startMonitorJddmEngine.sh";
 pub const START_JDDM_SCRIPT: &str = "startJddmKafkaEngine.sh";
 pub const JDDM_START_WITH_FILE: &str = "bin/monica.started";
+
+// pub trait Command {
+
+//     async fn start(worker_threads: usize);
+
+//     async fn run(xlsx_checksum: &str, c: &db::Client, c0: Arc<Mutex<usize>>, s: &Server);
+    
+// }
 
 // 通用步骤
 pub fn clean_ds(s: &Server, dbps_home: &str, ssh: &ssh::Client){
@@ -71,20 +79,30 @@ pub fn clean_monica_cache_file(dbps_home: &str, ssh: &ssh::Client){
 // 启动任务
 // 如果脚本启动不加 >/dev/null的话，会话会一直等待数据返回，导致无法下一步。
 pub fn startup_jddm(s: &Server, dbps_home: &str, ssh: &ssh::Client){
+
+    // 启动参数
+    let stdout = ssh.exec_cmd(&format!("cat {}/{}", dbps_home, JDDM_START_WITH_FILE));
+    let starts_with = stdout.trim_end_matches("\n");
+    let escape_starts_with = serde_json::to_string(starts_with).unwrap();
     
-    let mut cmd = format!("export DBPS_HOME={} && cd $DBPS_HOME && ", dbps_home);
-    cmd = format!("{} export START_WITH=\"$(cat $DBPS_HOME/{} 2>/dev/null)\" && ", cmd, JDDM_START_WITH_FILE);
     // 清理垃圾文件
-    cmd = format!("{} rm {{bin,lib,module}}/monica.* 2>/dev/null && ", cmd);
-    cmd = format!("{} ./{} start {} \"$START_WITH\" >/dev/null && ", cmd, START_JDDM_M_SCRIPT, s.service_name);
-    cmd = format!("{} ./{} start {} \"$START_WITH\" >/dev/null", cmd, START_JDDM_SCRIPT, s.service_name);
-    
-    let (status, _, stderr) = ssh.exec_cmd_with_status(&cmd);
+    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null", 
+                    dbps_home, START_JDDM_M_SCRIPT, s.service_name, escape_starts_with));
     if status == 0 {
         log(s, dbps_home, "Startup command has been issued");
     } else {
         error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
     }
+
+    let (status, _, stderr) = ssh.exec_cmd_with_status(&format!("export DBPS_HOME={} && cd $DBPS_HOME && ./{} start {} {} >/dev/null", 
+                    dbps_home, START_JDDM_SCRIPT, s.service_name, escape_starts_with));
+    if status == 0 {
+        log(s, dbps_home, "Startup command has been issued");
+    } else {
+        error(s, dbps_home, &format!("Startup command issuance failed, cause: {}", stderr));
+    }
+
+    clean_monica_cache_file(dbps_home, ssh);
 }   
 
 // 只需要更新源端

@@ -305,7 +305,7 @@ pub fn clean_local_inventory(checksum: &str, s: &str){
     let dir = get_local_inventory_dir();
     match fs::remove_dir_all(&format!("{}/{}", dir, checksum)) {
         Ok(_) => {
-            info!("Clean local inventory dir {}/{} for rollback", dir, checksum);
+            info!("Rollback: remove local inventory dir {}/{}", dir, checksum);
 
             // 从文件中删除对应的行
             let index_file = format!("{}/backupset.index", dir);
@@ -322,14 +322,14 @@ pub fn clean_local_inventory(checksum: &str, s: &str){
                 Ok(mut f) => {
                     f.write_all(new_lines.join("\n").as_bytes()).unwrap();
                     f.flush().unwrap();
-                    info!("Flush local inventory index {} for rollback", index_file);
+                    info!("Rollback: flush local inventory index {}", index_file);
                 },
                 Err(e) => {
                     error!("File {} open failed, cause: {}", &index_file, e);
                 }
             }
         },
-        Err(e) => {error!("Remove local inventory di failed, cause: {}", e)}
+        Err(e) => {error!("Rollback: remove local inventory dir failed, cause: {}", e)}
     }
 
 }

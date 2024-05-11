@@ -6,12 +6,11 @@ use tokio::runtime;
 
 use crate::{cmd::{clean_ds, clean_dt, clean_jddm, error, get_last_datetime, log, query_log_position, startup, startup_jddm, update_yrba_file}, config::{self, current_log_position, get_db_info, Server, KFK_TYPE}, db, file::{clean_local_inventory, read_local_inventory_index}, ssh};
 
-use super::{clean_monica_cache_file, print_counter, read_log_position};
+use super::{clean_monica_cache_file, print_counter, read_log_position, JDDM_START_WITH_FILE};
 
 // 回退操作
 pub async fn handle_command_rollback(worker_threads: usize) {
 
-    
     let contents: String = read_local_inventory_index();
     println!("");
 
@@ -121,8 +120,6 @@ async fn start_rollback_worker(checksum: &str, c: &db::Client, c0: Arc<Mutex<usi
     start_dt_worker(&ssh, s, &checksum);
     start_jddm_worker(&ssh, s, &checksum);
 
-    
-
     info!("xlsx:Line: {:<2} Host: {}, Service: {}, Rollback completed", &s.rid, &s.hostname, &s.service_name);
 }
 
@@ -202,6 +199,12 @@ fn start_jddm_worker(ssh: &ssh::Client, s: &Server, xlsx_checksum: &str){
     if ls.len() == 0 {
         log(s, &dbps_home, "There are no Interim patches installed in this dbps home");
         return;
+    }
+
+    // 将启动参数写入到 $dbps_home/bin/monica.started 中
+    // ./startJddmKafkaEngine.sh start <service_name> <jddm_state>
+    if ssh.write_jddm_starts_with(&dbps_home) {
+        log(s, &dbps_home, &format!("Jddm_starts_with written to {}", JDDM_START_WITH_FILE));
     }
 
     // 检查文件是否存在
